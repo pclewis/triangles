@@ -109,18 +109,6 @@
 (defn make-graph [x y z]
   (apply add-lines base-lines (concat (repeat x :x) (repeat y :y) (repeat z :z))))
 
-(defn graph-info [g ps]
-  (let [edges (lines-to-edges g)
-        nodes (lines-to-nodes g)
-        tris (lines-to-tris g)
-        [x y z] (degraph g)]
-    (str x "x" y "x" z " graph" "\n"
-         "Overlapping nodes: " (count (overlapping-points ps)) "\n"
-         "Edges: " (count edges) " (formula: " (n-edges x y z) ")" "\n"
-         "Nodes: " (count nodes) " (formula: " (n-nodes x y z) ")" "\n"
-         "Tris: " (count tris) " (formula: " (n-tris x y z) ")" "\n")))
-
-
 (defn degraph [lines]
   (map #(-> #{%} (lines-from lines) count) '(:x :y :z)))
 
@@ -219,6 +207,17 @@
   (reduce #(apply merge-points %1 %2)
           lines
           (overlapping-points positions)))
+
+(defn graph-info [g ps]
+  (let [edges (lines-to-edges g)
+        nodes (lines-to-nodes g)
+        tris (lines-to-tris g)
+        [x y z] (degraph g)]
+    (str x "x" y "x" z " graph" "\n"
+         "Overlapping nodes: " (count (overlapping-points ps)) "\n"
+         "Edges: " (count edges) " (formula: " (n-edges x y z) ")" "\n"
+         "Nodes: " (count nodes) " (formula: " (n-nodes x y z) ")" "\n"
+         "Tris: " (count tris) " (formula: " (n-tris x y z) ")" "\n")))
 
 (defn gv [g]
   (let [ps (node-positions g)
