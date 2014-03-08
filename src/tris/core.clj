@@ -1,9 +1,21 @@
 (ns tris.core
   (:gen-class)
   (:require [clojure.math.combinatorics :as combo]
-            [clojure.java.shell :as sh]))
+            [clojure.java.shell :as sh]
+            [clojure.set]))
 
+;; generic utility functions
 (defn spy [x] (println x) x)
+(def find-first (comp first filter))
+
+;;   z
+;;  / \
+;; x---y
+(def base-lines
+  "The outside lines of the triangle."
+  #{#{:x :y}
+    #{:y :z}
+    #{:z :x}})
 
 (defn lines-to-edges [lines]
   (set (map (partial apply hash-set)
@@ -32,16 +44,10 @@
         nodes (lines-to-nodes lines)]
     (filter #(apply triangle? lines edges %) (combo/combinations nodes 3))))
 
-(def base-lines #{#{:x :y}
-                  #{:y :z}
-                  #{:z :x}})
-
 (defn break-line [lines target node]
   (set (map (fn [line] (if (in-line? line target)
                         (conj line node)
                         line)) lines)))
-
-(def find-first (comp first filter))
 
 (defn hypotenuse [x]
   (find-first #(not (% x)) base-lines))
@@ -53,7 +59,7 @@
   "Return lines originating from pts that do not intersect the opposite point(s)"
   [pts lines]
   (let [hs (apply clojure.set/intersection (map hypotenuse pts))]
-    (filter #(and (some pts %) (not (some hs %))) lines)))
+    (filter #(and (some pts %) (not-any? hs %)) lines)))
 
 (defn add-line [lines start]
   (apply conj
@@ -64,14 +70,13 @@
                 [lines #{start}]
                 (lines-from (hypotenuse start) lines))))
 
-(add-line base-lines :x)
-
 (defn add-lines [lines & starts]
   (reduce add-line lines starts))
 
-(defn T [x] (-> (+ x 1)
+(defn T [x] (-> (inc x)
                 (* x)
                 (/ 2)))
+
 (defn T+ [& xs] (T (apply + xs)))
 
 (defn n-edges [x y z]
@@ -126,9 +131,13 @@
 (defn line-angles [max n]
   (drop 1 (drop-last 1 (range 0 max (/ max (+ 2 n))))))
 
-;;aaa
-;; {:start [0 0]
+(defn line-angles [max n]
+  (drop 1  (range 0 max (/ max (inc n)))))
+
+;; {:root :x
+;;  :start [0 0]
 ;;  :angle 45
+;;  :offset 120
 ;;  :nodes #{...}
 (defn lines-to-info [lines]
   (mapcat (fn [sym cnt start offset]
@@ -161,8 +170,10 @@
     [(+ x (* dist (Math/cos r)))
      (+ y (* dist (Math/sin r)))]))
 
-;;
-(defn triangle-to-coordinates [triangle rotation node pos]
+(defn triangle-to-coordinates
+  "Given the position of any node in a triangle, calculate the other positions given
+   side c at specified rotation."
+  [triangle rotation node pos]
   (assoc
       (case node
         :a {:b (project-position pos (+ rotation 0) (:c triangle))
@@ -174,17 +185,17 @@
               :b (project-position pos (+ start (:C triangle)) (:a triangle))}))
     node pos))
 
+;; angle is along the base lines :x -> :y, :y -> :z, :z -> :x
+;; Therefore, the angle of the second line is against its other base line, and must be inverted.
+;; If there is no second line, it is the next base line, so the angle is 0.
 (defn node-position [info node]
   (let [lines (sort-by :root (filter #(some #{node} (:nodes %)) info))
-        xz (= #{:x :z} (set (map :root lines)))
-        [l1 l2] (if xz (reverse lines) lines)
-        l1a (:angle l1)
-        l2a (- 60 (or (:angle l2) 0)) ; if only one line, then it's along an outer line
-       ; l1a (if xz (- 60 l1a) l1a)
-       ; l2a (if xz l2a (- 60 l2a))
-        ]
-    (spy lines)
-    (:c (triangle-to-coordinates (spy (solve-triangle-aas {:A l1a :B l2a :c 1}))
+        [l1 l2] (if (= 3 (count lines))
+                  [(last lines) (first lines)] ;; x and z
+                  (if  (= #{:x :z} (set (map :root lines)))
+                    (reverse lines)
+                    lines))]
+    (:c (triangle-to-coordinates (solve-triangle-aas {:A (:angle l1) :B (- 60 (or (:angle l2) 0)) :c 1})
                                  (:offset l1) :a (:start l1)))))
 
 (defn node-positions [lines]
@@ -199,16 +210,41 @@
                      (node-position info node))])
                 (lines-to-nodes lines)))))
 
+(defn merge-points [lines p & dups]
+  (let [replacements (apply hash-map (interleave dups (repeat p)))]
+    (set (map #(set (replace replacements %)) lines))))
+
+(defn merge-overlapping-points [lines]
+  (let [g (group-by (fn [[_ pos]]
+                      (map #(Math/round (* 100.0 %)) pos))
+                    (node-positions lines))]
+    (reduce #(apply merge-points %1 (map first %2))
+            lines
+            (filter #(>= (count %) 3) (vals g)))))
+(replace {:x :q} #{:x :y :z})
+(interleave [:a] [:b :c])
+(merge-points #{#{:a :x :y} #{:b :x :y} #{:q :d :r}} :a :b :c :d)
+(make-graph 1 1 1)
+(make-graph 2 2 4)
+(merge-overlapping-points (make-graph 2 2 4))
+(node-positions (make-graph 1 1 1))
+(group-by :root (lines-to-info (make-graph 1 1 1)))
+(mapcat identity [nil '(:a :b) '(:q)])
+(Math/round 4.0)
+
 (defn gv [g]
-  (let [ps (node-positions g)]
-    (str "graph G {"
+  (let [g (merge-overlapping-points g)
+        ps (node-positions g)
+        [x y z] (degraph g)]
+    (str "graph T" x "x" y "x" z " {"
          "graph [scale=72];"
-         "node [label=\"\", shape=point];"
+         "node [shape=point width=0.01 height=0.01 fixedsize=true];"
+         "edge [penwidth=0.1];"
          (apply str (map #(str (name (first %)) " -- " (name (second %)) ";") (lines-to-edges g)))
          (apply str (for [n (lines-to-nodes g)
                           :let [p (ps n)]
                           :when p]
-                      (str (name n) " [ pos = \"" (first p) "," (second p) "!\" ];") ))
+                      (str (name n) " [ pos = \"" (* 5 (first p)) "," (* 5 (second p)) "!\" ];") ))
          (apply str (for [[t tn] (map list (sort-by #(vec (reverse (sort (map (comp vec reverse ps) %)))) (lines-to-tris g)) (range))
                           :let [col (mod tn 5)
                                 row (int (/ tn 5))]]
@@ -227,10 +263,16 @@
 (comment
   (double 22/6)
 
-  (spit "/home/pcl/projects/tris/g432.gv" (gv (make-graph 4 3 2)))
+  (spit "/home/pcl/projects/tris/g111-bad.gv" (gv (make-graph 1 1 1)))
+  (time
+   (do
+     (spit "/home/pcl/projects/tris/gTTT.gv" (gv (make-graph 10 10 10)))
+     ""))
 
   (sh/sh "lneato" "-" :in (gv (make-graph 1 0 1)))
-  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 4 3 2)))))
+  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 2 2 4)))))
+
+  (println (lines-to-info (make-graph 2 2 4)))
 
   (sh/sh "cat" :in "hi")
 
@@ -239,14 +281,13 @@
   (lines-to-info (make-graph 0 0 1))
   (lines-to-tris (make-graph 1 1 0))
   (node-positions (make-graph 1 1 0))
-  ({:a 1} :a))
+  ({:a 1} :a)
+  (read "2"))
 
 (defn -main
-  "I don't do a whole lot ... yet."
   [& args]
-  ;; work around dangerous default behaviour in Clojure
-  (alter-var-root #'*read-eval* (constantly false))
-  (println "Hello, World!"))
+  (if (= 3 (count args))
+    (println (gv (apply make-graph (map #(Integer. %) args))))
+    (println "Usage: tris x y z")))
 
-
-;(x*((y+z+2) choose 2) + ((x+2) choose 2) + (y*((x+z+2) choose 2) + ((y+2) choose 2) + (z*((y+x+2) choose 2)+ ((z+2) choose 2))-(xy+xz+yz+x+y+z+3)
+;; if X=-Y=Z points will overlap
