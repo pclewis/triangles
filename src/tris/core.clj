@@ -109,20 +109,16 @@
 (defn make-graph [x y z]
   (apply add-lines base-lines (concat (repeat x :x) (repeat y :y) (repeat z :z))))
 
-(defn graph-info [x y z]
-  (let [g (make-graph x y z)
-        edges (lines-to-edges g)
+(defn graph-info [g ps]
+  (let [edges (lines-to-edges g)
         nodes (lines-to-nodes g)
-        tris (lines-to-tris g)]
-    (println x "x" y "x" z "graph")
-    (println "Edges:" (count edges) "(formula:" (n-edges x y z) ")")
-    (println "Nodes:" (count nodes) "(formula:" (n-nodes x y z) ")")
-    (println "Tris:" (count tris) "(formula:" (n-tris x y z) ")")
-    (println "Edges - Nodes - Tris:" (- (count edges) (count nodes) (count tris)))
-;    (println "Lines:" g)
-;    (println "Uniq tris:" (count (distinct tris)))
-;    (println "Tris:" tris)
-    ))
+        tris (lines-to-tris g)
+        [x y z] (degraph g)]
+    (str x "x" y "x" z " graph" "\n"
+         "Overlapping nodes: " (count (overlapping-points ps)) "\n"
+         "Edges: " (count edges) " (formula: " (n-edges x y z) ")" "\n"
+         "Nodes: " (count nodes) " (formula: " (n-nodes x y z) ")" "\n"
+         "Tris: " (count tris) " (formula: " (n-tris x y z) ")" "\n")))
 
 
 (defn degraph [lines]
@@ -190,11 +186,9 @@
 ;; If there is no second line, it is the next base line, so the angle is 0.
 (defn node-position [info node]
   (let [lines (sort-by :root (filter #(some #{node} (:nodes %)) info))
-        [l1 l2] (if (= 3 (count lines))
-                  [(last lines) (first lines)] ;; x and z
-                  (if  (= #{:x :z} (set (map :root lines)))
-                    (reverse lines)
-                    lines))]
+        [l1 l2] (if (= #{:x :z} (set (map :root lines)))
+                  (reverse lines)
+                  lines)]
     (:c (triangle-to-coordinates (solve-triangle-aas {:A (:angle l1) :B (- 60 (or (:angle l2) 0)) :c 1})
                                  (:offset l1) :a (:start l1)))))
 
@@ -214,31 +208,25 @@
   (let [replacements (apply hash-map (interleave dups (repeat p)))]
     (set (map #(set (replace replacements %)) lines))))
 
-(defn merge-overlapping-points [lines]
-  (let [g (group-by (fn [[_ pos]]
-                      (map #(Math/round (* 100.0 %)) pos))
-                    (node-positions lines))]
-    (reduce #(apply merge-points %1 (map first %2))
-            lines
-            (filter #(>= (count %) 3) (vals g)))))
-(replace {:x :q} #{:x :y :z})
-(interleave [:a] [:b :c])
-(merge-points #{#{:a :x :y} #{:b :x :y} #{:q :d :r}} :a :b :c :d)
-(make-graph 1 1 1)
-(make-graph 2 2 4)
-(merge-overlapping-points (make-graph 2 2 4))
-(node-positions (make-graph 1 1 1))
-(group-by :root (lines-to-info (make-graph 1 1 1)))
-(mapcat identity [nil '(:a :b) '(:q)])
-(Math/round 4.0)
+(defn overlapping-points [positions]
+  (filter #(>= (count %) 3)
+          (map (partial map first)
+               (vals (group-by (fn [[_ pos]]
+                                 (map #(Math/round (* 100.0 %)) pos))
+                               positions)))) )
+
+(defn merge-overlapping-points [lines positions]
+  (reduce #(apply merge-points %1 %2)
+          lines
+          (overlapping-points positions)))
 
 (defn gv [g]
-  (let [g (merge-overlapping-points g)
-        ps (node-positions g)
-        [x y z] (degraph g)]
+  (let [ps (node-positions g)
+        [x y z] (degraph g)
+        g (merge-overlapping-points g ps)]
     (str "graph T" x "x" y "x" z " {"
          "graph [scale=72];"
-         "node [shape=point width=0.01 height=0.01 fixedsize=true];"
+         "node [shape=point fontsize=4 width=0.01 height=0.01 fixedsize=true];"
          "edge [penwidth=0.1];"
          (apply str (map #(str (name (first %)) " -- " (name (second %)) ";") (lines-to-edges g)))
          (apply str (for [n (lines-to-nodes g)
@@ -249,15 +237,18 @@
                           :let [col (mod tn 5)
                                 row (int (/ tn 5))]]
                       (str
-                       (apply str (map #(str "t" tn (name (first %)) " -- " "t" tn (name (second %)) ";")
-                                       (combo/combinations t 2)))
-                       (apply str (for [n t
-                                        :let [[x y] (ps n)
-                                              p [(+ x col)
-                                                 (- y (inc row))]]]
-                                    (str "t" tn (name n) " [ pos = \"" (first p) "," (second p) "!\" ]; ")))
-                       "label" tn " [ pos=\"" col "," (- 0 row 0.2) "!\" shape=circle width=0.2 height=0.2 fixedsize=true fontsize=6 label=\"" (inc tn) "\"" "];"
-                       )))
+                       (apply str (for [n (lines-to-nodes g)
+                                        :let [p (ps n)]
+                                        :when p]
+                                    (str "t" tn (name n) " [ pos = \"" (+ (first p) col) "," (- (second p) (inc row)) "!\" ];") ))
+                       (apply str (for [e (lines-to-edges g)]
+                                    (str "t" tn (name (first e)) " -- " "t" tn (name (second e))
+                                         (if (every? (set t) e) "[ penwidth=1 color=\"#0000FF\" ]"
+                                             "[ style=dashed color=\"#0000007F\" ]")
+                                         ";")))
+                       "label" tn " [ pos=\"" col "," (- 0 row 0.2) "!\" shape=circle width=0.2 height=0.2 fixedsize=true fontsize=6 label=\"" (inc tn) "\"" "];")
+                     ))
+         "info [fixedsize=false shape=circle pos=\"1,4!\" label=\"" (clojure.string/replace (graph-info g ps) "\n" "\\n") "\"];"
          "}")))
 
 (comment
@@ -269,8 +260,14 @@
      (spit "/home/pcl/projects/tris/gTTT.gv" (gv (make-graph 10 10 10)))
      ""))
 
+  (def g224 (make-graph 2 2 4))
+
   (sh/sh "lneato" "-" :in (gv (make-graph 1 0 1)))
-  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 2 2 4)))))
+
+  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 1 1 2)))))
+
+  (gv (make-graph 1 1 1))
+  (graph-info (make-graph 1 1 1))
 
   (println (lines-to-info (make-graph 2 2 4)))
 
