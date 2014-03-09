@@ -2,7 +2,14 @@
   (:gen-class)
   (:require [clojure.math.combinatorics :as combo]
             [clojure.java.shell :as sh]
-            [clojure.set]))
+            [clojure.set]
+            [ring.adapter.jetty :as jetty]
+            [ring.middleware.resource :use wrap-resource]
+            [ring.middleware.file-info :use wrap-file-info]
+            [ring.middleware.params :use wrap-params]
+            [ring.middleware.keyword-params :use wrap-keyword-params]
+            [hiccup.core :use html]
+            [garden.core :use css]))
 
 ;; generic utility functions
 (defn spy [x] (println x) x)
@@ -247,7 +254,7 @@
                                          ";")))
                        "label" tn " [ pos=\"" col "," (- 0 row 0.2) "!\" shape=circle width=0.2 height=0.2 fixedsize=true fontsize=6 label=\"" (inc tn) "\"" "];")
                      ))
-         "info [fixedsize=false shape=circle pos=\"1,4!\" label=\"" (clojure.string/replace (graph-info g ps) "\n" "\\n") "\"];"
+         "info [fixedsize=false fontsize=8 shape=circle pos=\"1,4!\" label=\"" (clojure.string/replace (graph-info g ps) "\n" "\\n") "\"];"
          "}")))
 
 (comment
@@ -263,7 +270,7 @@
 
   (sh/sh "lneato" "-" :in (gv (make-graph 1 0 1)))
 
-  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 1 1 2)))))
+  (sh/sh "display" "svg:-" :in (:out (sh/sh "neato" "-Tsvg" :in (gv (make-graph 4 4 3)))))
 
   (gv (make-graph 1 1 1))
   (graph-info (make-graph 1 1 1))
@@ -280,10 +287,42 @@
   ({:a 1} :a)
   (read "2"))
 
+(def index
+  (html
+   [:html
+    [:head
+     [:script {:src "/js/main.js"}]]
+    [:body
+     [:h1 "Hello world"]
+     (for [n [:x :y :z]]
+       [:input {:type "text" :size 2 :maxlength 2 :id (name n) :value "1"}])
+     [:br]
+     [:img#graph {:src "#"}]
+     [:script "tris.core.load_graph(1,1,1)"]]]))
+
+(defn handler [request]
+  (println request)
+  (case (:uri request)
+    "/gv.svg" {:status 200
+               :headers {"Content-Type" "image/svg+xml"}
+               :body (:out (sh/sh "neato" "-Tsvg" :in (gv (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")) ))))}
+    "/" {:status 200
+         :headers {"Content-Type" "text/html"}
+         :body index}))
+
+(def app
+  (-> handler
+      (wrap-resource "public")
+      (wrap-file-info)
+      (wrap-keyword-params)
+      (wrap-params)))
+
 (defn -main
   [& args]
-  (if (= 3 (count args))
-    (println (gv (apply make-graph (map #(Integer. %) args))))
+  (case (count args)
+    0 (jetty/run-jetty app {:port 3000})
+    1 (jetty/run-jetty app {:port (Integer. (first args))})
+    3 (println (gv (apply make-graph (map #(Integer. %) args))))
     (println "Usage: tris x y z")))
 
 ;; if X=-Y=Z points will overlap
