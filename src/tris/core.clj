@@ -120,21 +120,18 @@
 (defn degraph [lines]
   (map #(-> #{%} (lines-from lines) count) '(:x :y :z)))
 
-(defn line-angles [max n]
-  (drop 1 (drop-last 1 (range 0 max (/ max (+ 2 n))))))
-
-(defn line-angles [max n]
-  (drop 1  (range 0 max (/ max (inc n)))))
+(defn line-angles [max n o]
+  (map #(+ o %) (drop 1 (range 0 max (/ max (inc n))))))
 
 ;; {:root :x
 ;;  :start [0 0]
 ;;  :angle 45
 ;;  :offset 120
 ;;  :nodes #{...}
-(defn lines-to-info [lines]
+(defn lines-to-info [lines o]
   (mapcat (fn [sym cnt start offset]
             (map (fn [line angle] {:root sym :start start :angle angle :nodes line :offset offset})
-                 (lines-from #{sym} lines) (line-angles 60 cnt)))
+                 (lines-from #{sym} lines) (line-angles 60 cnt o)))
        [:x :y :z]
        (degraph lines)
        [[0 0] [1 0] [0.5 0.866]]
@@ -188,8 +185,8 @@
     (:c (triangle-to-coordinates (solve-triangle-aas {:A (:angle l1) :B (- 60 (or (:angle l2) 0)) :c 1})
                                  (:offset l1) :a (:start l1)))))
 
-(defn node-positions [lines]
-  (let [info (lines-to-info lines)]
+(defn node-positions [lines o]
+  (let [info (lines-to-info lines o)]
     (apply hash-map
            (mapcat (fn [node]
                   [node
@@ -228,7 +225,7 @@
          "Tris: " (count tris) " (formula: " (n-tris x y z) ")" "\n")))
 
 (defn gv [g]
-  (let [ps (node-positions g)
+  (let [ps (node-positions g 0)
         [x y z] (degraph g)
         g (merge-overlapping-points g ps)]
     (str "graph T" x "x" y "x" z " {"
@@ -261,17 +258,30 @@
 (defn invert-y [m]
   (apply hash-map (mapcat #(vector (key %) [(first (val %)) (- 1 (second (val %)))]) m)))
 
-(defn svg [lines]
-  (let [ps (invert-y (node-positions lines))
+(defn lines-to-draw [lines]
+  (let [important-nodes (apply clojure.set/union (filter #(some (partial in-line? %) (combo/combinations [:x :y :z] 2)) lines))]
+    (map #(let [rs (filter #{:x :y :z} %)]
+            (if (= (count rs) 2) rs
+                (filter important-nodes %))) lines)))
+
+(defn sort-tris [tris ps]
+  (sort-by (fn [nodes]
+             (let [pts (map ps nodes)]
+               [(Math/round (* 100.0 (- 1 (apply min (map second pts)))))     ; top-most point
+                (vec (sort (map first pts)))]))  ; left-to-right
+           tris))
+
+(defn svg [lines o]
+  (let [ps (invert-y (node-positions lines o))
         [x y z] (degraph lines)
         g (merge-overlapping-points lines ps)
-        edges (lines-to-edges g)
+        edges (lines-to-draw g)
         nodes (lines-to-nodes g)
-        tris (lines-to-tris g)
+        tris (sort-tris (lines-to-tris g) ps)
         rows (+ 6 (int (/ (count tris) 5)))]
     (xml/sexp-as-element
      [:svg {:width 800 :height (* rows 150) :viewBox (str "0 0 5 " rows ".5") :xmlns "http://www.w3.org/2000/svg" :xmlns:xlink "http://www.w3.org/1999/xlink" }
-      [:defs [:g {:id "tt" :stroke "black" :stroke-dasharray "0.02,0.02" :stroke-opacity "0.5" :stroke-width 0.007}
+      [:defs [:g {:id "tt" :stroke "black" :stroke-dasharray "0.02,0.02" :stroke-opacity "0.2" :fill-opacity "0.2" :stroke-width 0.007}
               (for [n nodes
                     :let [[x y] (ps n)]]
                 [:circle {:cx x :cy y :r 0.014}])
@@ -348,7 +358,7 @@
      [:script {:src "/js/main.js"}]]
     [:body
      [:h1 "Hello world"]
-     (for [n [:x :y :z]]
+     (for [n [:x :y :z :o]]
        [:input {:type "text" :size 2 :maxlength 2 :id (name n) :value "1"}])
      [:br]
      [:img#graph {:src "#"}]
@@ -359,7 +369,8 @@
   (case (:uri request)
     "/gv.svg" {:status 200
                :headers {"Content-Type" "image/svg+xml"}
-               :body (xml/emit-str (svg (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")))))
+               :body (xml/emit-str (svg (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")))
+                                        (Double. (or (:o (:params request)) "0"))))
                ;(:out (sh/sh "neato" "-Tsvg" :in (gv (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")) ))))
                }
     "/" {:status 200
@@ -379,6 +390,9 @@
     0 (jetty/run-jetty app {:port 3000})
     1 (jetty/run-jetty app {:port (Integer. (first args))})
     3 (println (gv (apply make-graph (map #(Integer. %) args))))
+    4 (println (svg (apply make-graph (map #(Integer. %) (take 3 args)))
+                    (Double. (last args))))
     (println "Usage: tris x y z")))
+
 
 ;; if X=-Y=Z points will overlap
