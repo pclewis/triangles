@@ -9,7 +9,8 @@
             [ring.middleware.params :use wrap-params]
             [ring.middleware.keyword-params :use wrap-keyword-params]
             [hiccup.core :use html]
-            [garden.core :use css]))
+            [garden.core :use css]
+            [clojure.data.xml :as xml]))
 
 ;; generic utility functions
 (defn spy [x] (println x) x)
@@ -35,7 +36,7 @@
   (boolean (edges #{x y})))
 
 (defn in-line? [line nodes]
-  (every? (set line) nodes))
+  (every? line nodes))
 
 (defn in-any-line? [lines & nodes]
   (some #(in-line? % nodes) lines))
@@ -257,13 +258,66 @@
          "info [fixedsize=false fontsize=8 shape=circle pos=\"1,4!\" label=\"" (clojure.string/replace (graph-info g ps) "\n" "\\n") "\"];"
          "}")))
 
+(defn invert-y [m]
+  (apply hash-map (mapcat #(vector (key %) [(first (val %)) (- 1 (second (val %)))]) m)))
+
+(defn svg [lines]
+  (let [ps (invert-y (node-positions lines))
+        [x y z] (degraph lines)
+        g (merge-overlapping-points lines ps)
+        edges (lines-to-edges g)
+        nodes (lines-to-nodes g)
+        tris (lines-to-tris g)
+        rows (+ 6 (int (/ (count tris) 5)))]
+    (xml/sexp-as-element
+     [:svg {:width 800 :height (* rows 150) :viewBox (str "0 0 5 " rows ".5") :xmlns "http://www.w3.org/2000/svg" :xmlns:xlink "http://www.w3.org/1999/xlink" }
+      [:defs [:g {:id "tt" :stroke "black" :stroke-dasharray "0.02,0.02" :stroke-opacity "0.5" :stroke-width 0.007}
+              (for [n nodes
+                    :let [[x y] (ps n)]]
+                [:circle {:cx x :cy y :r 0.014}])
+              (for [e edges
+                    :let [[[x1 y1] [x2 y2]] (map ps e)]]
+                [:line {:x1 x1 :y1 y1 :x2 x2 :y2 y2}])]]
+      [:g {:stroke "black" :stroke-width "0.01"}
+       [:text {:x 0.1 :y 0.1 :font-size 0.1 :stroke "black" :stroke-opacity 0.1}
+        (for [line (clojure.string/split (graph-info g ps) #"\n")]
+          [:tspan {:dy 0.11 :x 0} line])]
+       (for [n nodes
+            :let [[x y] (ps n)]]
+        [:circle {:cx (* x 5) :cy (* y 5) :r 0.02}])
+       (for [e edges
+             :let [[[x1 y1] [x2 y2]] (map ps e)]]
+         [:line {:x1 (* x1 5) :y1 (* y1 5) :x2 (* x2 5) :y2 (* y2 5)}])]
+      (for [[t tn] (map vector tris (range))
+            :let [row (int (/ tn 5))
+                  col (mod tn 5)]]
+        [:g {:stroke "blue" :stroke-width 0.01 :stroke-opacity 1}
+         [:text {:x col :y (+ 5.2 row) :font-size 0.1 :stroke "black" :stroke-opacity 0.1} (inc tn)]
+         [:use {:xlink:href "#tt" :x col :y (+ 5 row)}]
+         (for [[[x1 y1] [x2 y2]] (combo/combinations (map ps t) 2)]
+           [:line {:x1 (+ x1 col) :y1 (+ y1 5 row) :x2 (+ x2 col) :y2 (+ y2 5 row)}])] )
+      ]))
+  )
+
 (comment
   (double 22/6)
+
+  (lines-to-tris (make-graph 1 1 0))
+
+  (html [:svg [:g [:circle]]])
+
+  (xml/emit-str
+   (svg (make-graph 1 1 1)))
+
+  (xml/sexp-as-element
+   [:svg
+    [:g
+     [:circle]]])
 
   (spit "/home/pcl/projects/tris/g111-bad.gv" (gv (make-graph 1 1 1)))
   (time
    (do
-     (spit "/home/pcl/projects/tris/gTTT.gv" (gv (make-graph 10 10 10)))
+     (spit "/home/pcl/projects/tris/g555.gv" (gv (make-graph 5 5 5)))
      ""))
 
   (def g224 (make-graph 2 2 4))
@@ -305,7 +359,9 @@
   (case (:uri request)
     "/gv.svg" {:status 200
                :headers {"Content-Type" "image/svg+xml"}
-               :body (:out (sh/sh "neato" "-Tsvg" :in (gv (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")) ))))}
+               :body (xml/emit-str (svg (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")))))
+               ;(:out (sh/sh "neato" "-Tsvg" :in (gv (apply make-graph (map #(Integer. %) (clojure.string/split (:q (:params request)) #",")) ))))
+               }
     "/" {:status 200
          :headers {"Content-Type" "text/html"}
          :body index}))

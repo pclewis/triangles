@@ -9,7 +9,8 @@
                  [hiccup "1.0.5"]
                  [garden "1.1.5"]
                  [ring/ring-core "1.2.1"]
-                 [ring/ring-jetty-adapter "1.2.1"]]
+                 [ring/ring-jetty-adapter "1.2.1"]
+                 [org.clojure/data.xml "0.0.7"]]
   :plugins [[lein-cljsbuild "1.0.2"]]
 
   :main ^:skip-aot tris.core
