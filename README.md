@@ -2,7 +2,7 @@
 
 Prove that the number of triangles that can be made inside of an equilateral triangle with x lines projected from the left, y lines projected from the right, and z lines projected from the top, and no 3 lines crossing in the middle at a single point, is equal to:
 
-1/2(xx + yy + zz + xxy + xxz + yyx + yyz + zzx + zzy + 2xyz + 4xy + 4xz + 4yz + 3x + 3y + 3z + 2)
+1/2(xx+yy+zz + xxy+xxz + yyx+yyz + zzx+zzy + 4(xy+xz+yz) + 3(x+y+z) + 2xyz + 2)
 
 ## Observations
 
