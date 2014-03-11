@@ -20,6 +20,8 @@
 
   :hooks [cljx.hooks]
 
+  :source-paths ["src/clj"]
+
   :cljx {:builds [{:source-paths ["src/cljx"]
                    :output-path "target/classes"
                    :rules :clj}
