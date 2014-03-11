@@ -53,8 +53,26 @@
 
 (defn lines-to-tris [lines]
   (let [edges (lines-to-edges lines)
-        nodes (lines-to-nodes lines)]
-    (filter #(apply triangle? lines edges %) (combinations nodes 3))))
+        nodes (lines-to-nodes lines)
+        ;; map of node -> set of connected nodes
+        edgemap (apply merge-with clojure.set/union
+                       (map #(let [[x y] (vec %)] {x #{y} y #{x}}) edges))
+
+        ;; map of #{node1 node2} -> set of nodes in same line
+        linemap (apply merge (mapcat (fn [line] (map #(hash-map (set %) (apply disj line %))
+                                    (combinations line 2)))
+                     lines)) ]
+
+
+    (set
+     (mapcat (fn [[node edges]]
+               (mapcat (fn [n2]
+                         (map #(hash-set node n2 %)
+                              (clojure.set/intersection (clojure.set/difference (edgemap n2)
+                                                                                (linemap #{node n2}))
+                                                        edges)))
+                       edges))
+             edgemap))))
 
 (defn break-line [lines target node]
   (set (map (fn [line] (if (in-line? line target)
