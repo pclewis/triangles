@@ -15,7 +15,6 @@
   (html
    [:html
     [:head
-     [:script {:src "/third-party/combinatorics.js"}]
      [:script {:src "/js/main.js"}]]
     [:body
      [:h1 "Hello world"]

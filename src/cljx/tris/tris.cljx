@@ -1,16 +1,21 @@
 (ns tris.tris
-  (:require #+clj [clojure.math.combinatorics :as combo]
-            [clojure.set]))
+  (:require [clojure.set]))
 
 (def find-first (comp first filter))
 
 (defn combinations [coll n]
-  #+clj (combo/combinations coll n)
-  #+cljs (map seq (.toArray (.combination js/Combinatorics (apply array coll) n))))
+  (if (= n 1)
+    (map vector coll)
+    (lazy-cat (map #(cons (first coll) %) (combinations (drop 1 coll) (dec n)))
+              (when (< n (count coll))
+                (combinations (drop 1 coll) n)))))
 
 (defn permutations [coll]
-  #+clj (combo/permutations coll)
-  #+cljs (map seq (.toArray (.permutation js/Combinatorics (apply array coll)))))
+  (if (= 1 (count coll))
+    [coll]
+    (mapcat (fn [h] (map #(cons h %)
+                        (permutations (disj coll h))))
+            coll)))
 
 (defn deg-to-rad [d]
   #+clj (Math/toRadians d)
@@ -143,7 +148,7 @@
 (defn solve-triangle-aas [triangle]
   (let [triangle (reduce (fn [t [a & os]]
                            (if (t a) t
-                               (assoc t a (apply - 180 (map t os))))) triangle (permutations [:A :B :C]))
+                               (assoc t a (apply - 180 (map t os))))) triangle (permutations #{:A :B :C}))
         angles-sides (map (partial map triangle) [[:A :a] [:B :b] [:C :c]])
         ratio (some (fn [[a s]] (when (and a s) (/ s (Math/sin (deg-to-rad a))))) angles-sides)
         triangle (reduce (fn [t [k [a s]]] (if-not (nil? s) t
