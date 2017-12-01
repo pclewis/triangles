@@ -1,0 +1,11 @@
+\begin{align*}
+f(a,b,c) &= 1 + abc + 2a + 2b + 2c +  T_{a-1} + T_{b-1} + T_{c-1} + g(a,b) + g(b,c) + g(a,c) \\
+&= 1 + abc + 2a + 2b + 2c
+\\&\qquad+ \frac{a^2 -a}{2} + \frac{b^2 -b}{2} + \frac{c^2-c}{2}
+\\&\qquad+ \frac{ab(a+b+4)}{2} + \frac{bc(b+c+4)}{2} + \frac{ac(a+c+4)}{2}
+\\&=1 + abc + \frac{1}{2}(ab^2 + ba^2 + bc^2 + cb^2 + ac^2 + ca^2 + a^2 + b^2 + c^2 + 3a + 3b + 3c)
+\\
+\text{where } g(a,b) &= 3ab + T_{a-1}b + T_{b-1}a 
+= \frac{ab(a+b+4)}{2}\\
+T_{n}&=\sum _{k=1}^{n}k=1+2+3+\dotsb +n={n+1 \choose 2}={\frac {n(n+1)}{2}} &\text{(triangle number)}
+\end{align*}

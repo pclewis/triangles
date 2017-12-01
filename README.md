@@ -2,9 +2,17 @@
 
 ![The basic concept](doc/intro.svg)
 
-Prove that the number of triangles that can be made inside of an equilateral triangle where `a` `b` and `c` are the number of internal lines coming from the corresponding point and no 3 of those lines cross at a single point, is:
+How many triangles can you find?
 
-![1 + abc + 2a + 2b + 2c + ½(a(a-1) + b(b-1) + c(c-1) + ab(a+b+4) + ac(a+c+4) + bc(b+c+4))](doc/formula.gif)
+This app proves that the number of triangles that can be made inside of an equilateral triangle where `a` `b` and `c` are the number of internal lines coming from the corresponding point and no 3 of those lines cross at a single point is:
+
+![1 + abc + ½(aab + baa + bcc + cbb + acc + caa + aa + bb + cc + 3a + 3b + 3c)](doc/formula.gif)
+
+It does this by generating an svg showing every possible triangle.
+
+## Screenshot
+
+![screenshot](doc/screenshot.png)
 
 ## Explanation
 
@@ -21,18 +29,20 @@ T<sub>a-1</sub>b + T<sub>b-1</sub>a | Every pair of lines from `a` creates a tri
 
 ## Observations
 
- - If z=0, it simplifies to 1/2(x+1)(y+1)(x+y+2)
- - If z=0 and x=y, it simplifies to (x+1)^3
+ - If c=0, it simplifies to ½(a+1)(b+1)(a+b+2)
+ - If c=0 and a=b, it simplifies to (a+1)³
  - When treated as a graph with a node at each line crossing and an edge between each pair of nodes in a line:
-   - The number of edges is x\*T(y+z+1)+T(x+1)+y\*T(x+z+1)+T(y+1)+z\*T(x+y+1)+T(z+1)
+   - The number of edges is a\*T(b+c+1)+T(a+1)+b\*T(a+c+1)+T(b+1)+c\*T(a+b+1)+T(c+1)
      - Where T is the [Triangle Number](https://en.wikipedia.org/wiki/Triangle_number), i.e. T(n)=n*(n+1)/2
-   - The number of nodes is xy + xz + yz + x + y + z + 3
-     - Every x crosses every y and z, every y crosses every z, each x y and z adds a node on the opposite base line, and there are 3 starting nodes
-   - If z=0, the number of triangles is edges-nodes+1
+   - The number of nodes is ab + bc + ac + a + b + c + 3
+     - Every line from each side crosses every line from the other sides, and adds a node on the opposite base line. Plus 3 starting nodes from the base triangle.
+   - If c=0, the number of triangles is edges-nodes+1
    
 ## Usage
 
 `lein run` and visit `localhost:3000`
+
+The four boxes are `a`, `b`, `c`, and `o`, where `o` is an offset to add to each angle to prevent 3 lines from crossing a single point.
 
 ## License
 
