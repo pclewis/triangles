@@ -1,12 +1,28 @@
 # tris
 
-Prove that the number of triangles that can be made inside of an equilateral triangle with x lines projected from the left, y lines projected from the right, and z lines projected from the top, and no 3 lines crossing in the middle at a single point, is equal to:
+![The basic concept](doc/intro.svg)
 
-1/2(xxy+xxz + yyx+yyz + zzx+zzy + xx+3x + yy+3y + zz+3z)) + 2(xy+xz+yz) + xyz + 1 
- - 1 for the base triangle
- - xyz because if they can't intersect as a single point, they must form a triangle
- - 1/2(xx + 3x) are the triangles created just from x and the base points (2, 5, 9, ...)
- - 1/2(xxy + yyx) + 2xy are the triangles created from x and y intersections
+Prove that the number of triangles that can be made inside of an equilateral triangle where `a` `b` and `c` are the number of internal lines coming from the corresponding point and no 3 lines cross at a single point, is:
+
+![1 + abc + 2a + 2b + 2c + ½(a(a-1) + b(b-1) + c(c-1) + ab(a+b+4) + ac(a+c+4) + bc(b+c+4))](doc/formula.gif)
+
+## Explanation
+
+Formula                        | Explanation 
+-------------------------------|-------------------
+1                              | The base triangle
+abc                            | If 3 lines can't cross at a single point, they must cross at 3 points and make a triangle ![crossing at single point](doc/2a-bad.svg) ![making a triangle](doc/2a-good.svg) 
+2a + 2b + 2c                   | Each line from `a` creates a point `x` on `A`, making triangles `abx` and `acx`
+![½(a(a-1) + b(b-1) + c(c-1))](doc/formula-pairs.gif) | Every pair of lines from `a` creates a triangle with `A`
+g(a,b) + g(b,c) + g(a,c)       | Triangles created from intersections
+
+**where** g(a,b) =
+
+Formula                        | Explanation 
+-------------------------------|-------------------
+3ab                            | Each line from `a` splits each line from `b` at point `y`, making triangles `ayxₐ`, `ayxᵦ`, and `ayb`
+½a(a-1)b                       | Every pair of lines from `a` creates a triangle with each line from `b`
+½a(b-1)a                       | .. and vice versa
 
 ## Observations
 
@@ -18,6 +34,10 @@ Prove that the number of triangles that can be made inside of an equilateral tri
    - The number of nodes is xy + xz + yz + x + y + z + 3
      - Every x crosses every y and z, every y crosses every z, each x y and z adds a node on the opposite base line, and there are 3 starting nodes
    - If z=0, the number of triangles is edges-nodes+1
+   
+## Usage
+
+`lein run` and visit `localhost:3000`
 
 ## License
 
