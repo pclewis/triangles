@@ -2,7 +2,7 @@
 
 ![The basic concept](doc/intro.svg)
 
-Prove that the number of triangles that can be made inside of an equilateral triangle where `a` `b` and `c` are the number of internal lines coming from the corresponding point and no 3 lines cross at a single point, is:
+Prove that the number of triangles that can be made inside of an equilateral triangle where `a` `b` and `c` are the number of internal lines coming from the corresponding point and no 3 of those lines cross at a single point, is:
 
 ![1 + abc + 2a + 2b + 2c + ½(a(a-1) + b(b-1) + c(c-1) + ab(a+b+4) + ac(a+c+4) + bc(b+c+4))](doc/formula.gif)
 
@@ -11,18 +11,13 @@ Prove that the number of triangles that can be made inside of an equilateral tri
 Formula                        | Explanation 
 -------------------------------|-------------------
 1                              | The base triangle
-abc                            | If 3 lines can't cross at a single point, they must cross at 3 points and make a triangle ![crossing at single point](doc/2a-bad.svg) ![making a triangle](doc/2a-good.svg) 
-2a + 2b + 2c                   | Each line from `a` creates a point `x` on `A`, making triangles `abx` and `acx`
-![½(a(a-1) + b(b-1) + c(c-1))](doc/formula-pairs.gif) | Every pair of lines from `a` creates a triangle with `A`
-g(a,b) + g(b,c) + g(a,c)       | Triangles created from intersections
-
-**where** g(a,b) =
-
-Formula                        | Explanation 
--------------------------------|-------------------
-3ab                            | Each line from `a` splits each line from `b` at point `y`, making triangles `ayxₐ`, `ayxᵦ`, and `ayb`
-½a(a-1)b                       | Every pair of lines from `a` creates a triangle with each line from `b`
-½a(b-1)a                       | .. and vice versa
+abc                            | If 3 lines can't cross at a single point, they must cross at 3 points and make a triangle<br>![crossing at single point](doc/abc-bad.svg) ![making a triangle](doc/abc-good.svg) 
+2a + 2b + 2c                   | Each line from `a` creates a point `xᵃ` on line `A`, making triangles `abxᵃ` and `acxᵃ`<br>![triangles on far side](doc/2a.svg)
+T<sub>a-1</sub> + T<sub>b-1</sub> + T<sub>c-1</sub>| Every pair of lines from `a` creates a triangle with a segment of line `A` as the third line<br>![pairs](doc/pairs.svg)
+g(a,b) + g(b,c) + g(a,c)       | Triangles created from intersections between two lines
+**where** g(a,b) | =
+3ab                            | Each line from `a` splits each line from `b` at point `y`, making triangles ayx<sup>b</sup>, byx<sup>a</sup>, and `ayb`. This is similar to `2a` above, but with a third triangle created using point x<sup>a</sup>.<br>![3ab](doc/3ab.svg)
+T<sub>a-1</sub>b + T<sub>b-1</sub>a | Every pair of lines from `a` creates a triangle with each line from `b`, and vice versa. This is the same as the triangles created along the edges above.<br>![crosspairs](doc/crosspairs.svg)
 
 ## Observations
 
