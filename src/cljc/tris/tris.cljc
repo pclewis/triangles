@@ -18,8 +18,8 @@
             coll)))
 
 (defn deg-to-rad [d]
-  #+clj (Math/toRadians d)
-  #+cljs (* d (/ Math.PI 180)))
+  #?(:clj (Math/toRadians d)
+     :cljs (* d (/ Math.PI 180))))
 
 ;;   z
 ;;  / \
